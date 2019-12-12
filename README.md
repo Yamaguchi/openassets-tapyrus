@@ -4,12 +4,12 @@ The implementation of the [Open Assets Protocol](https://github.com/OpenAssets/o
 
 ## Examples
 
-bitcoin::TxOut supports marker output.
+tapyrus::TxOut supports marker output.
 
 ```rust
-use bitcoin::{Script, TxOut};
-use bitcoin::blockdata::script::Builder;
-use bitcoin::util::misc::hex_bytes;
+use tapyrus::{Script, TxOut};
+use tapyrus::blockdata::script::Builder;
+use tapyrus::util::misc::hex_bytes;
 use hex::decode as hex_decode;
 use openassets::marker_output::{TxOutExt, Payload};
 
@@ -41,12 +41,12 @@ Asset ID calculation.
 
 ```rust
 use std::str::FromStr;
-use bitcoin::blockdata::script::Builder;
+use tapyrus::blockdata::script::Builder;
 use openassets::asset_id::AssetId;
 use hex::decode as hex_decode;
 
 let p2pkh = Builder::from(hex_decode("76a914010966776006953d5567439e5e39f86a0d273bee88ac").unwrap()).into_script();
-let asset_id = AssetId::new(&p2pkh, bitcoin::network::constants::Network::Bitcoin);
+let asset_id = AssetId::new(&p2pkh, tapyrus::network::constants::Network::Bitcoin);
 asset_id.to_string();
 => "ALn3aK1fSuG27N96UGYB1kUYUpGKRhBuBC"
 
@@ -62,7 +62,7 @@ use std::string::ToString;
 use openassets::address::OAAddressConverter;
 
 // convert btc address to open assets address
-let addr = bitcoin::Address::from_str("1F2AQr6oqNtcJQ6p9SiCLQTrHuM9en44H8").unwrap();
+let addr = tapyrus::Address::from_str("1F2AQr6oqNtcJQ6p9SiCLQTrHuM9en44H8").unwrap();
 addr.to_oa_address().unwrap().to_string();
 => "akQz3f1v9JrnJAeGBC4pNzGNRdWXKan4U6E"
 

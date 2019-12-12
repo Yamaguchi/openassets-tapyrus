@@ -1,7 +1,7 @@
-use bitcoin::blockdata::script::Instruction;
-use bitcoin::{TxOut, VarInt};
-use bitcoin::consensus::{Decodable, Decoder, deserialize, Encoder, Encodable};
-use bitcoin::consensus::encode::Error;
+use tapyrus::blockdata::script::Instruction;
+use tapyrus::{TxOut, VarInt};
+use tapyrus::consensus::{Decodable, Decoder, deserialize, Encoder, Encodable};
+use tapyrus::consensus::encode::Error;
 
 pub const MARKER: u16 = 0x4f41;
 pub const VERSION: u16 = 0x0100;
@@ -114,12 +114,12 @@ impl TxOutExt for TxOut{
 
 #[cfg(test)]
 mod tests {
-    use bitcoin::{Script, TxOut};
-    use bitcoin::blockdata::script::Builder;
-    use bitcoin::util::misc::hex_bytes;
+    use tapyrus::{Script, TxOut};
+    use tapyrus::blockdata::script::Builder;
+    use tapyrus::util::misc::hex_bytes;
     use hex::decode as hex_decode;
     use openassets::marker_output::{TxOutExt, Payload};
-    use bitcoin::consensus::serialize;
+    use tapyrus::consensus::serialize;
 
     #[test]
     fn test_op_return_data(){
