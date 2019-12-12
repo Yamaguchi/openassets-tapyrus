@@ -1,6 +1,8 @@
+use std::io::{Read, Write};
+
 use tapyrus::blockdata::script::Instruction;
 use tapyrus::{TxOut, VarInt};
-use tapyrus::consensus::{Decodable, Decoder, deserialize, Encoder, Encodable};
+use tapyrus::consensus::{Decodable, deserialize, Encodable};
 use tapyrus::consensus::encode::Error;
 
 pub const MARKER: u16 = 0x4f41;
@@ -14,11 +16,11 @@ pub struct Payload{
 
 }
 
-impl<S: Encoder> Encodable<S> for Payload{
-    fn consensus_encode(&self, s: &mut S) -> Result<(), Error> {
-        MARKER.to_be().consensus_encode(s)?;
-        VERSION.to_be().consensus_encode(s)?;
-        VarInt(self.quantities.len() as u64).consensus_encode(s)?;
+impl Encodable for Payload {
+    fn consensus_encode<S: Write>(&self, mut s: S) -> Result<usize, Error> {
+        let mut len = MARKER.to_be().consensus_encode(&mut s)?;
+        len += VERSION.to_be().consensus_encode(&mut s)?;
+        len += VarInt(self.quantities.len() as u64).consensus_encode(&mut s)?;
         // asset quantity
         for &q in self.quantities.iter() {
             let mut value: u64 = q;
@@ -26,35 +28,35 @@ impl<S: Encoder> Encodable<S> for Payload{
                 let mut byte = value & 0x7F;
                 value >>= 7;
                 if value != 0 {byte |= 0x80;}
-                Encodable::consensus_encode(&(byte as u8), s)?;
+                len += Encodable::consensus_encode(&(byte as u8), &mut s)?;
                 if value == 0 { break;}
             }
         };
-        self.metadata.consensus_encode(s)?;
-        Ok(())
+        len += self.metadata.consensus_encode(&mut s)?;
+        Ok(len)
     }
 }
 
-impl<D: Decoder> Decodable<D> for Payload{
-    fn consensus_decode(d: &mut D) -> Result<Payload, Error> {
-        let marker: u16 = Decodable::consensus_decode(d)?;
+impl Decodable for Payload {
+    fn consensus_decode<D: Read>(mut d: D) -> Result<Payload, Error> {
+        let marker: u16 = Decodable::consensus_decode(&mut d)?;
         if marker != MARKER.to_be() {
             return Err(Error::ParseFailed("Invalid marker."));
         }
 
-        let version: u16 = Decodable::consensus_decode(d)?;
+        let version: u16 = Decodable::consensus_decode(&mut d)?;
         if version != VERSION.to_be() {
             return Err(Error::ParseFailed("Invalid version."));
         }
 
-        let VarInt(count): VarInt = Decodable::consensus_decode(d)?;
+        let VarInt(count): VarInt = Decodable::consensus_decode(&mut d)?;
         let mut quantities: Vec<u64> = Vec::with_capacity(count as usize);
 
         for _ in 0..count {
             let mut value: u64 = 0;
             let mut offset: u64 = 0;
             loop {
-                let b: u8 = Decodable::consensus_decode(d)?;
+                let b: u8 = Decodable::consensus_decode(&mut d)?;
                 value |= ((b as u64) & 0x7f) << offset;
                 if (b as u64) & 0x80 == 0 { break;}
                 offset += 7;
