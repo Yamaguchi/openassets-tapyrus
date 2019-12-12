@@ -36,8 +36,8 @@ impl Display for Address{
         let mut prefixed = [0; 22];
         prefixed[0] = NAMESPACE;
         prefixed[1] = match self.network {
-            tapyrus::network::constants::Network::Bitcoin => 0,
-            tapyrus::network::constants::Network::Testnet | tapyrus::network::constants::Network::Regtest => 111
+            tapyrus::network::constants::Network::Bitcoin | tapyrus::network::constants::Network::Paradium => 0,
+            tapyrus::network::constants::Network::Testnet | tapyrus::network::constants::Network::Regtest => 111,
         };
         match self.payload {
             Payload::PubkeyHash(ref hash) => {

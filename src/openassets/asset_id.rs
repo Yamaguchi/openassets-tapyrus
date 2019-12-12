@@ -25,7 +25,7 @@ impl Display for AssetId{
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         let mut prefixed = [0; 21];
         prefixed[0] = match self.network {
-            tapyrus::network::constants::Network::Bitcoin => 0x17,
+            tapyrus::network::constants::Network::Bitcoin | tapyrus::network::constants::Network::Paradium => 0x17,
             tapyrus::network::constants::Network::Testnet | tapyrus::network::constants::Network::Regtest => 0x73
         };
         prefixed[1..].copy_from_slice(&self.hash[..]);
