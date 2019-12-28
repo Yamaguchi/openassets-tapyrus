@@ -1,4 +1,5 @@
 use std::io::{Read, Write};
+use std::string::FromUtf8Error;
 
 use tapyrus::blockdata::script::Instruction;
 use tapyrus::consensus::encode::Error;
@@ -11,7 +12,7 @@ pub const VERSION: u16 = 0x0100;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Payload {
     pub quantities: Vec<u64>,
-    pub metadata: String,
+    pub metadata: Metadata,
 }
 
 impl Encodable for Payload {
@@ -76,6 +77,27 @@ impl Decodable for Payload {
     }
 }
 
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct Metadata(Vec<u8>);
+
+impl Metadata {
+    pub fn to_string(&self) -> Result<String, FromUtf8Error> {
+        String::from_utf8(self.0.clone())
+    }
+}
+
+impl Encodable for Metadata {
+    fn consensus_encode<S: Write>(&self, s: S) -> Result<usize, Error> {
+        self.0.consensus_encode(s)
+    }
+}
+
+impl Decodable for Metadata {
+    fn consensus_decode<D: Read>(d: D) -> Result<Metadata, Error> {
+        Ok(Metadata(Decodable::consensus_decode(d)?))
+    }
+}
+
 pub trait TxOutExt {
     fn get_op_return_data(&self) -> Vec<u8>;
 
@@ -122,7 +144,7 @@ impl TxOutExt for TxOut {
 #[cfg(test)]
 mod tests {
     use hex::decode as hex_decode;
-    use openassets::marker_output::{Payload, TxOutExt};
+    use openassets::marker_output::{Metadata, Payload, TxOutExt};
     use tapyrus::blockdata::script::Builder;
     use tapyrus::consensus::serialize;
     use tapyrus::util::misc::hex_bytes;
@@ -268,7 +290,10 @@ mod tests {
         };
         let payload: Payload = marker_output.get_oa_payload().unwrap();
         assert_eq!(vec![100, 0, 123], payload.quantities);
-        assert_eq!("u=https://cpr.sm/5YgSU1Pg-q", payload.metadata);
+        assert_eq!(
+            "u=https://cpr.sm/5YgSU1Pg-q".to_string(),
+            payload.metadata.to_string().unwrap()
+        );
 
         // empty metadata
         let marker_output = TxOut {
@@ -277,7 +302,21 @@ mod tests {
         };
         let payload: Payload = marker_output.get_oa_payload().unwrap();
         assert_eq!(vec![1, 68], payload.quantities);
-        assert_eq!("", payload.metadata);
+        assert_eq!(Vec::<u8>::new(), payload.metadata.0);
+
+        // binary metadata
+        let marker_output = TxOut {
+            value: 0,
+            script_pubkey: Builder::from(
+                hex_decode("6a104f4101000201440801020304fffefdfc").unwrap(),
+            )
+            .into_script(),
+        };
+        let payload: Payload = marker_output.get_oa_payload().unwrap();
+        assert_eq!(
+            vec![0x01, 0x02, 0x03, 0x04, 0xff, 0xfe, 0xfd, 0xfc],
+            payload.metadata.0
+        );
 
         // test for leb128
         let marker_output = TxOut {
@@ -291,7 +330,7 @@ mod tests {
 
     #[test]
     fn test_encode_payload() {
-        let metadata = "u=https://cpr.sm/5YgSU1Pg-q".to_string();
+        let metadata = Metadata("u=https://cpr.sm/5YgSU1Pg-q".as_bytes().to_vec());
         let payload = Payload {
             quantities: vec![100, 0, 123],
             metadata,
@@ -303,7 +342,7 @@ mod tests {
             result
         );
 
-        let metadata = "".to_string();
+        let metadata = Metadata(vec![]);
         let payload = Payload {
             quantities: vec![1, 68],
             metadata,
@@ -311,8 +350,20 @@ mod tests {
         let result: Vec<u8> = serialize(&payload);
         assert_eq!(hex_decode("4f41010002014400").unwrap(), result);
 
+        // binary metadata
+        let metadata = Metadata(vec![0x01, 0x02, 0x03, 0x04, 0xff, 0xfe, 0xfd, 0xfc]);
+        let payload = Payload {
+            quantities: vec![1, 68],
+            metadata,
+        };
+        let result: Vec<u8> = serialize(&payload);
+        assert_eq!(
+            hex_decode("4f4101000201440801020304fffefdfc").unwrap(),
+            result
+        );
+
         // test for leb128
-        let metadata = "".to_string();
+        let metadata = Metadata(vec![]);
         let payload = Payload {
             quantities: vec![127, 128, 12857],
             metadata,
