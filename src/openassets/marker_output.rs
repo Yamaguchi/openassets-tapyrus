@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use std::string::FromUtf8Error;
+use std::fmt;
 
 use tapyrus::blockdata::script::Instruction;
 use tapyrus::consensus::encode::Error;
@@ -80,9 +80,12 @@ impl Decodable for Payload {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Metadata(Vec<u8>);
 
-impl Metadata {
-    pub fn to_string(&self) -> Result<String, FromUtf8Error> {
-        String::from_utf8(self.0.clone())
+impl fmt::Display for Metadata {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match String::from_utf8(self.0.clone()) {
+            Ok(s) => write!(f, "{}", s),
+            _ => panic!("invalid utf-8 string") 
+        }
     }
 }
 
@@ -292,7 +295,7 @@ mod tests {
         assert_eq!(vec![100, 0, 123], payload.quantities);
         assert_eq!(
             "u=https://cpr.sm/5YgSU1Pg-q".to_string(),
-            payload.metadata.to_string().unwrap()
+            payload.metadata.to_string()
         );
 
         // empty metadata
