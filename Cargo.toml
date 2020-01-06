@@ -1,5 +1,5 @@
 [package]
-name = "openassets"
+name = "openassets-tapyrus"
 version = "0.1.0"
 authors = ["azuchi <azuchi@chaintope.com>"]
 license = "MIT"
