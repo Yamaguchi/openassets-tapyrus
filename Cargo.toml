@@ -1,15 +1,15 @@
 [package]
-name = "openassets"
+name = "openassets-tapyrus"
 version = "0.1.0"
 authors = ["azuchi <azuchi@chaintope.com>"]
 license = "MIT"
 description = "The implementation of the Open Assets Protocol for Rust."
-repository = "https://github.com/chaintope/openassets-rust"
+repository = "https://github.com/chaintope/openassets-tapyrus"
 readme = "README.md"
-keywords = ["openassets", "bitcoin"]
+keywords = ["openassets", "bitcoin", "tapyrus"]
 
 [dependencies]
-bitcoin = "0.18.0"
+tapyrus = { git = "https://github.com/chaintope/rust-tapyrus/", features = ["use-serde"]}
 leb128 = "0.2.3"
 byteorder = "1.2"
 bitcoin_hashes = "0.3"

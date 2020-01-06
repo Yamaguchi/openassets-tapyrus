@@ -1,5 +1,5 @@
 
-extern crate bitcoin;
+extern crate tapyrus;
 extern crate hex;
 extern crate byteorder;
 extern crate bitcoin_hashes;
