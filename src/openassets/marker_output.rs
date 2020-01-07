@@ -1,19 +1,18 @@
 use std::io::{Read, Write};
+use std::fmt;
 
 use tapyrus::blockdata::script::Instruction;
-use tapyrus::{TxOut, VarInt};
-use tapyrus::consensus::{Decodable, deserialize, Encodable};
 use tapyrus::consensus::encode::Error;
+use tapyrus::consensus::{deserialize, Decodable, Encodable};
+use tapyrus::{TxOut, VarInt};
 
 pub const MARKER: u16 = 0x4f41;
 pub const VERSION: u16 = 0x0100;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Payload{
-
+pub struct Payload {
     pub quantities: Vec<u64>,
-    pub metadata: String
-
+    pub metadata: Metadata,
 }
 
 impl Encodable for Payload {
@@ -27,11 +26,15 @@ impl Encodable for Payload {
             loop {
                 let mut byte = value & 0x7F;
                 value >>= 7;
-                if value != 0 {byte |= 0x80;}
+                if value != 0 {
+                    byte |= 0x80;
+                }
                 len += Encodable::consensus_encode(&(byte as u8), &mut s)?;
-                if value == 0 { break;}
+                if value == 0 {
+                    break;
+                }
             }
-        };
+        }
         len += self.metadata.consensus_encode(&mut s)?;
         Ok(len)
     }
@@ -58,19 +61,47 @@ impl Decodable for Payload {
             loop {
                 let b: u8 = Decodable::consensus_decode(&mut d)?;
                 value |= ((b as u64) & 0x7f) << offset;
-                if (b as u64) & 0x80 == 0 { break;}
+                if (b as u64) & 0x80 == 0 {
+                    break;
+                }
                 offset += 7;
             }
             quantities.push(value);
         }
 
-        let payload = Payload { quantities, metadata: Decodable::consensus_decode(d)? };
+        let payload = Payload {
+            quantities,
+            metadata: Decodable::consensus_decode(d)?,
+        };
         return Ok(payload);
     }
 }
 
-pub trait TxOutExt{
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct Metadata(Vec<u8>);
 
+impl fmt::Display for Metadata {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match String::from_utf8(self.0.clone()) {
+            Ok(s) => write!(f, "{}", s),
+            _ => panic!("invalid utf-8 string") 
+        }
+    }
+}
+
+impl Encodable for Metadata {
+    fn consensus_encode<S: Write>(&self, s: S) -> Result<usize, Error> {
+        self.0.consensus_encode(s)
+    }
+}
+
+impl Decodable for Metadata {
+    fn consensus_decode<D: Read>(d: D) -> Result<Metadata, Error> {
+        Ok(Metadata(Decodable::consensus_decode(d)?))
+    }
+}
+
+pub trait TxOutExt {
     fn get_op_return_data(&self) -> Vec<u8>;
 
     fn is_openassets_marker(&self) -> bool;
@@ -78,8 +109,7 @@ pub trait TxOutExt{
     fn get_oa_payload(&self) -> Result<Payload, Error>;
 }
 
-impl TxOutExt for TxOut{
-
+impl TxOutExt for TxOut {
     fn get_op_return_data(&self) -> Vec<u8> {
         if self.script_pubkey.is_op_return() {
             let mut script_iter = self.script_pubkey.iter(false);
@@ -88,9 +118,9 @@ impl TxOutExt for TxOut{
             if item.is_some() {
                 return match item.unwrap() {
                     Instruction::PushBytes(value) => value.to_vec(),
-                    _ => vec![]
+                    _ => vec![],
                 };
-            } else{
+            } else {
                 return vec![];
             }
         } else {
@@ -116,101 +146,232 @@ impl TxOutExt for TxOut{
 
 #[cfg(test)]
 mod tests {
-    use tapyrus::{Script, TxOut};
-    use tapyrus::blockdata::script::Builder;
-    use tapyrus::util::misc::hex_bytes;
     use hex::decode as hex_decode;
-    use openassets::marker_output::{TxOutExt, Payload};
+    use openassets::marker_output::{Metadata, Payload, TxOutExt};
+    use tapyrus::blockdata::script::Builder;
     use tapyrus::consensus::serialize;
+    use tapyrus::util::misc::hex_bytes;
+    use tapyrus::{Script, TxOut};
 
     #[test]
-    fn test_op_return_data(){
+    fn test_op_return_data() {
         // op return data
-        let script: Script = Builder::from(hex_decode("6a244f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71").unwrap()).into_script();
-        let txout = TxOut {value: 0, script_pubkey: script};
-        assert_eq!(hex_bytes("4f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71").unwrap(), txout.get_op_return_data());
+        let script: Script = Builder::from(
+            hex_decode(
+                "6a244f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71",
+            )
+            .unwrap(),
+        )
+        .into_script();
+        let txout = TxOut {
+            value: 0,
+            script_pubkey: script,
+        };
+        assert_eq!(
+            hex_bytes("4f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71")
+                .unwrap(),
+            txout.get_op_return_data()
+        );
 
         // no op return
-        let script: Script = Builder::from(hex_decode("76a91446c2fbfbecc99a63148fa076de58cf29b0bcf0b088ac").unwrap()).into_script();
-        let no_data = TxOut {value: 0, script_pubkey: script};
+        let script: Script = Builder::from(
+            hex_decode("76a91446c2fbfbecc99a63148fa076de58cf29b0bcf0b088ac").unwrap(),
+        )
+        .into_script();
+        let no_data = TxOut {
+            value: 0,
+            script_pubkey: script,
+        };
         assert_eq!(0, no_data.get_op_return_data().len());
     }
 
     #[test]
-    fn test_is_openassets_marker(){
+    fn test_is_openassets_marker() {
         // no op return
-        let no_data = TxOut {value: 0, script_pubkey: Builder::from(hex_decode("76a91446c2fbfbecc99a63148fa076de58cf29b0bcf0b088ac").unwrap()).into_script()};
+        let no_data = TxOut {
+            value: 0,
+            script_pubkey: Builder::from(
+                hex_decode("76a91446c2fbfbecc99a63148fa076de58cf29b0bcf0b088ac").unwrap(),
+            )
+            .into_script(),
+        };
         assert!(!no_data.is_openassets_marker());
 
         // valid marker
-        let valid_marker = TxOut {value: 0, script_pubkey: Builder::from(hex_decode("6a244f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71").unwrap()).into_script()};
+        let valid_marker = TxOut {
+            value: 0,
+            script_pubkey: Builder::from(
+                hex_decode(
+                    "6a244f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71",
+                )
+                .unwrap(),
+            )
+            .into_script(),
+        };
         assert!(valid_marker.is_openassets_marker());
 
         // invalid marker
-        let invalid_marker = TxOut {value: 0, script_pubkey: Builder::from(hex_decode("6a4f4201000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71").unwrap()).into_script()};
+        let invalid_marker = TxOut {
+            value: 0,
+            script_pubkey: Builder::from(
+                hex_decode(
+                    "6a4f4201000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71",
+                )
+                .unwrap(),
+            )
+            .into_script(),
+        };
         assert!(!invalid_marker.is_openassets_marker());
 
         // invalid version
-        let invalid_marker = TxOut {value: 0, script_pubkey: Builder::from(hex_decode("6a4f4102000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71").unwrap()).into_script()};
+        let invalid_marker = TxOut {
+            value: 0,
+            script_pubkey: Builder::from(
+                hex_decode(
+                    "6a4f4102000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71",
+                )
+                .unwrap(),
+            )
+            .into_script(),
+        };
         assert!(!invalid_marker.is_openassets_marker());
 
         // can not parse varint
-        let invalid_marker = TxOut {value: 0, script_pubkey: Builder::from(hex_decode("6a4f410100ff").unwrap()).into_script()};
+        let invalid_marker = TxOut {
+            value: 0,
+            script_pubkey: Builder::from(hex_decode("6a4f410100ff").unwrap()).into_script(),
+        };
         assert!(!invalid_marker.is_openassets_marker());
 
         // can not decode leb128 data(invalid format)
-        let invalid_marker = TxOut {value: 0, script_pubkey: Builder::from(hex_decode("6a4f410100018f8f").unwrap()).into_script()};
+        let invalid_marker = TxOut {
+            value: 0,
+            script_pubkey: Builder::from(hex_decode("6a4f410100018f8f").unwrap()).into_script(),
+        };
         assert!(!invalid_marker.is_openassets_marker());
 
         // can not decode leb128 data(EOFError)
-        let invalid_marker = TxOut {value: 0, script_pubkey: Builder::from(hex_decode("6a4f410100028f7f").unwrap()).into_script()};
+        let invalid_marker = TxOut {
+            value: 0,
+            script_pubkey: Builder::from(hex_decode("6a4f410100028f7f").unwrap()).into_script(),
+        };
         assert!(!invalid_marker.is_openassets_marker());
 
         // no metadata length
-        let invalid_marker = TxOut {value: 0, script_pubkey: Builder::from(hex_decode("6a4f410100018f7f").unwrap()).into_script()};
+        let invalid_marker = TxOut {
+            value: 0,
+            script_pubkey: Builder::from(hex_decode("6a4f410100018f7f").unwrap()).into_script(),
+        };
         assert!(!invalid_marker.is_openassets_marker());
 
         // invalid metadata length
-        let invalid_marker = TxOut {value: 0, script_pubkey: Builder::from(hex_decode("6a4f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d").unwrap()).into_script()};
+        let invalid_marker = TxOut {
+            value: 0,
+            script_pubkey: Builder::from(
+                hex_decode(
+                    "6a4f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d",
+                )
+                .unwrap(),
+            )
+            .into_script(),
+        };
         assert!(!invalid_marker.is_openassets_marker());
     }
 
     #[test]
-    fn test_get_oa_payload(){
+    fn test_get_oa_payload() {
         // valid marker
-        let marker_output = TxOut { value: 0, script_pubkey: Builder::from(hex_decode("6a244f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71").unwrap()).into_script() };
+        let marker_output = TxOut {
+            value: 0,
+            script_pubkey: Builder::from(
+                hex_decode(
+                    "6a244f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71",
+                )
+                .unwrap(),
+            )
+            .into_script(),
+        };
         let payload: Payload = marker_output.get_oa_payload().unwrap();
         assert_eq!(vec![100, 0, 123], payload.quantities);
-        assert_eq!("u=https://cpr.sm/5YgSU1Pg-q", payload.metadata);
+        assert_eq!(
+            "u=https://cpr.sm/5YgSU1Pg-q".to_string(),
+            payload.metadata.to_string()
+        );
 
         // empty metadata
-        let marker_output = TxOut { value: 0, script_pubkey: Builder::from(hex_decode("6a084f41010002014400").unwrap()).into_script() };
+        let marker_output = TxOut {
+            value: 0,
+            script_pubkey: Builder::from(hex_decode("6a084f41010002014400").unwrap()).into_script(),
+        };
         let payload: Payload = marker_output.get_oa_payload().unwrap();
         assert_eq!(vec![1, 68], payload.quantities);
-        assert_eq!("", payload.metadata);
+        assert_eq!(Vec::<u8>::new(), payload.metadata.0);
+
+        // binary metadata
+        let marker_output = TxOut {
+            value: 0,
+            script_pubkey: Builder::from(
+                hex_decode("6a104f4101000201440801020304fffefdfc").unwrap(),
+            )
+            .into_script(),
+        };
+        let payload: Payload = marker_output.get_oa_payload().unwrap();
+        assert_eq!(
+            vec![0x01, 0x02, 0x03, 0x04, 0xff, 0xfe, 0xfd, 0xfc],
+            payload.metadata.0
+        );
 
         // test for leb128
-        let marker_output = TxOut { value: 0, script_pubkey: Builder::from(hex_decode("6a0b4f410100037f8001b96400").unwrap()).into_script() };
+        let marker_output = TxOut {
+            value: 0,
+            script_pubkey: Builder::from(hex_decode("6a0b4f410100037f8001b96400").unwrap())
+                .into_script(),
+        };
         let payload: Payload = marker_output.get_oa_payload().unwrap();
         assert_eq!(vec![127, 128, 12857], payload.quantities);
     }
 
     #[test]
     fn test_encode_payload() {
-        let metadata = "u=https://cpr.sm/5YgSU1Pg-q".to_string();
-        let payload = Payload { quantities: vec![100, 0, 123], metadata };
+        let metadata = Metadata("u=https://cpr.sm/5YgSU1Pg-q".as_bytes().to_vec());
+        let payload = Payload {
+            quantities: vec![100, 0, 123],
+            metadata,
+        };
         let result: Vec<u8> = serialize(&payload);
-        assert_eq!(hex_decode("4f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71").unwrap(), result);
+        assert_eq!(
+            hex_decode("4f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71")
+                .unwrap(),
+            result
+        );
 
-        let metadata = "".to_string();
-        let payload = Payload { quantities: vec![1, 68], metadata };
-        let result:  Vec<u8> = serialize(&payload);
+        let metadata = Metadata(vec![]);
+        let payload = Payload {
+            quantities: vec![1, 68],
+            metadata,
+        };
+        let result: Vec<u8> = serialize(&payload);
         assert_eq!(hex_decode("4f41010002014400").unwrap(), result);
 
+        // binary metadata
+        let metadata = Metadata(vec![0x01, 0x02, 0x03, 0x04, 0xff, 0xfe, 0xfd, 0xfc]);
+        let payload = Payload {
+            quantities: vec![1, 68],
+            metadata,
+        };
+        let result: Vec<u8> = serialize(&payload);
+        assert_eq!(
+            hex_decode("4f4101000201440801020304fffefdfc").unwrap(),
+            result
+        );
+
         // test for leb128
-        let metadata = "".to_string();
-        let payload = Payload { quantities: vec![127, 128, 12857], metadata};
-        let result:  Vec<u8> = serialize(&payload);
+        let metadata = Metadata(vec![]);
+        let payload = Payload {
+            quantities: vec![127, 128, 12857],
+            metadata,
+        };
+        let result: Vec<u8> = serialize(&payload);
         assert_eq!(hex_decode("4f410100037f8001b96400").unwrap(), result);
     }
 }
