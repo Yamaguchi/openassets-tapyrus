@@ -1,5 +1,7 @@
 use std::io::{Read, Write};
 use std::fmt;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 
 use tapyrus::blockdata::script::Instruction;
 use tapyrus::consensus::encode::Error;
@@ -98,6 +100,22 @@ impl Encodable for Metadata {
 impl Decodable for Metadata {
     fn consensus_decode<D: Read>(d: D) -> Result<Metadata, Error> {
         Ok(Metadata(Decodable::consensus_decode(d)?))
+    }
+}
+
+impl Serialize for Metadata {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Metadata", 2)?;
+        let hex = hex::encode(self.0.clone());
+        state.serialize_field("hex", &hex)?;
+        match String::from_utf8(self.0.clone()) {
+            Ok(s) => state.serialize_field("utf8", &s)?,
+            _ => {}
+        }
+        state.end()
     }
 }
 
@@ -373,5 +391,20 @@ mod tests {
         };
         let result: Vec<u8> = serialize(&payload);
         assert_eq!(hex_decode("4f410100037f8001b96400").unwrap(), result);
+    }
+
+    #[test]
+    fn test_serialize_metadata() {
+        // utf8 string
+        let metadata = Metadata("u=https://cpr.sm/5YgSU1Pg-q".as_bytes().to_vec());
+        assert_eq!(json!(metadata), json!({"hex": "753d68747470733a2f2f6370722e736d2f35596753553150672d71", "utf8": "u=https://cpr.sm/5YgSU1Pg-q"}));
+
+        // empty
+        let metadata = Metadata(vec![]);
+        assert_eq!(json!(metadata), json!({"hex": "", "utf8": ""}));
+
+        // binary
+        let metadata = Metadata(vec![0x01, 0x02, 0x03, 0x04, 0xff, 0xfe, 0xfd, 0xfc]);
+        assert_eq!(json!(metadata), json!({"hex": "01020304fffefdfc"}));
     }
 }
