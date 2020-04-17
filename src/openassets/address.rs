@@ -57,7 +57,7 @@ impl Display for Address {
                 prefixed[2..].copy_from_slice(&hash[..]);
                 base58::check_encode_slice_to_fmt(fmt, &prefixed[..])
             }
-            Payload::WitnessProgram(_) => {
+            Payload::WitnessProgram { .. } => {
                 fmt.write_str("The Open Assets Address of the witness program does not defined.")
             }
         }

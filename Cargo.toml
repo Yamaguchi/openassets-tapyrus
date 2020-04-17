@@ -9,7 +9,7 @@ readme = "README.md"
 keywords = ["openassets", "bitcoin", "tapyrus"]
 
 [dependencies]
-tapyrus = { git = "https://github.com/chaintope/rust-tapyrus/", tag = "v0.1.0", features = ["use-serde"]}
+tapyrus = { git = "https://github.com/chaintope/rust-tapyrus/", features = ["use-serde"]}
 leb128 = "0.2.3"
 byteorder = "1.2"
 bitcoin_hashes = "0.3"

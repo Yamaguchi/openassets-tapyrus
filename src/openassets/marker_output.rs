@@ -168,7 +168,7 @@ mod tests {
     use openassets::marker_output::{Metadata, Payload, TxOutExt};
     use tapyrus::blockdata::script::Builder;
     use tapyrus::consensus::serialize;
-    use tapyrus::util::misc::hex_bytes;
+    use tapyrus::hashes::hex::FromHex;
     use tapyrus::{Script, TxOut};
 
     #[test]
@@ -186,8 +186,10 @@ mod tests {
             script_pubkey: script,
         };
         assert_eq!(
-            hex_bytes("4f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71")
-                .unwrap(),
+            Vec::<u8>::from_hex(
+                "4f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71"
+            )
+            .unwrap(),
             txout.get_op_return_data()
         );
 

@@ -1,7 +1,6 @@
 use bitcoin_hashes::{hash160, Hash};
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
-use tapyrus::consensus::encode;
 use tapyrus::util::base58;
 use tapyrus::Script;
 
@@ -35,9 +34,9 @@ impl Display for AssetId {
 }
 
 impl FromStr for AssetId {
-    type Err = encode::Error;
+    type Err = base58::Error;
 
-    fn from_str(s: &str) -> Result<AssetId, encode::Error> {
+    fn from_str(s: &str) -> Result<AssetId, base58::Error> {
         let data = base58::from_check(s)?;
         let (network, hash) = match data[0] {
             0x17 => (
@@ -48,11 +47,7 @@ impl FromStr for AssetId {
                 tapyrus::network::constants::Network::Testnet,
                 hash160::Hash::from_slice(&data[1..]).unwrap(),
             ),
-            x => {
-                return Err(encode::Error::Base58(base58::Error::InvalidVersion(vec![
-                    x,
-                ])))
-            }
+            x => return Err(base58::Error::InvalidVersion(vec![x])),
         };
         Ok(AssetId { hash, network })
     }
