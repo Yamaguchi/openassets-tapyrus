@@ -1,6 +1,5 @@
 use std::fmt::{self, Display, Formatter};
 use tapyrus::consensus::encode;
-use tapyrus::consensus::encode::Error::ParseFailed;
 use tapyrus::network::constants::Network;
 use tapyrus::util::address::Payload;
 use tapyrus::util::base58;
@@ -19,14 +18,6 @@ impl Address {
         payload: Payload,
         network: tapyrus::network::constants::Network,
     ) -> Result<Self, encode::Error> {
-        match payload {
-            Payload::PubkeyHash(_) | Payload::ScriptHash(_) => {}
-            _ => {
-                return Err(ParseFailed(
-                    "The Open Assets Address of the witness program does not defined.",
-                ));
-            }
-        }
         Ok(Address { payload, network })
     }
 
@@ -43,10 +34,8 @@ impl Display for Address {
         let mut prefixed = [0; 22];
         prefixed[0] = NAMESPACE;
         prefixed[1] = match self.network {
-            tapyrus::network::constants::Network::Bitcoin
-            | tapyrus::network::constants::Network::Paradium => 0,
-            tapyrus::network::constants::Network::Testnet
-            | tapyrus::network::constants::Network::Regtest => 111,
+            tapyrus::network::constants::Network::Prod => 0,
+            tapyrus::network::constants::Network::Dev => 111,
         };
         match self.payload {
             Payload::PubkeyHash(ref hash) => {
@@ -56,9 +45,6 @@ impl Display for Address {
             Payload::ScriptHash(ref hash) => {
                 prefixed[2..].copy_from_slice(&hash[..]);
                 base58::check_encode_slice_to_fmt(fmt, &prefixed[..])
-            }
-            Payload::WitnessProgram { .. } => {
-                fmt.write_str("The Open Assets Address of the witness program does not defined.")
             }
         }
     }
@@ -99,9 +85,5 @@ mod tests {
             testnet_addr,
             testnet_addr.to_oa_address().unwrap().to_btc_addr().unwrap()
         );
-
-        let segwit_addr =
-            tapyrus::Address::from_str("bc1qvzvkjn4q3nszqxrv3nraga2r822xjty3ykvkuw").unwrap();
-        assert!(segwit_addr.to_oa_address().is_err());
     }
 }

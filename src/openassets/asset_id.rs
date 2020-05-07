@@ -23,10 +23,8 @@ impl Display for AssetId {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         let mut prefixed = [0; 21];
         prefixed[0] = match self.network {
-            tapyrus::network::constants::Network::Bitcoin
-            | tapyrus::network::constants::Network::Paradium => 0x17,
-            tapyrus::network::constants::Network::Testnet
-            | tapyrus::network::constants::Network::Regtest => 0x73,
+            tapyrus::network::constants::Network::Prod => 0x17,
+            tapyrus::network::constants::Network::Dev => 0x73,
         };
         prefixed[1..].copy_from_slice(&self.hash[..]);
         base58::check_encode_slice_to_fmt(fmt, &prefixed[..])
@@ -40,11 +38,11 @@ impl FromStr for AssetId {
         let data = base58::from_check(s)?;
         let (network, hash) = match data[0] {
             0x17 => (
-                tapyrus::network::constants::Network::Bitcoin,
+                tapyrus::network::constants::Network::Prod,
                 hash160::Hash::from_slice(&data[1..]).unwrap(),
             ),
             0x73 => (
-                tapyrus::network::constants::Network::Testnet,
+                tapyrus::network::constants::Network::Dev,
                 hash160::Hash::from_slice(&data[1..]).unwrap(),
             ),
             x => return Err(base58::Error::InvalidVersion(vec![x])),
@@ -66,7 +64,7 @@ mod tests {
             hex_decode("76a914010966776006953d5567439e5e39f86a0d273bee88ac").unwrap(),
         )
         .into_script();
-        let p2pkh_asset = AssetId::new(&p2pkh, tapyrus::network::constants::Network::Bitcoin);
+        let p2pkh_asset = AssetId::new(&p2pkh, tapyrus::network::constants::Network::Prod);
         assert_eq!(
             "ALn3aK1fSuG27N96UGYB1kUYUpGKRhBuBC",
             p2pkh_asset.to_string()
@@ -79,7 +77,7 @@ mod tests {
         let p2sh =
             Builder::from(hex_decode("a914f9d499817e88ef7b10a88673296c6d6df2f4292d87").unwrap())
                 .into_script();
-        let testnet_asset = AssetId::new(&p2sh, tapyrus::network::constants::Network::Testnet);
+        let testnet_asset = AssetId::new(&p2sh, tapyrus::network::constants::Network::Dev);
         assert_eq!(
             "oMb2yzA542yQgwn8XtmGefTzBv5NJ2nDjh",
             testnet_asset.to_string()
