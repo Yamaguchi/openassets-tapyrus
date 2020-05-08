@@ -1,7 +1,7 @@
-use std::io::{Read, Write};
-use std::fmt;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
+use std::fmt;
+use std::io::{Read, Write};
 
 use tapyrus::blockdata::script::Instruction;
 use tapyrus::consensus::encode::Error;
@@ -86,7 +86,7 @@ impl fmt::Display for Metadata {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match String::from_utf8(self.0.clone()) {
             Ok(s) => write!(f, "{}", s),
-            _ => panic!("invalid utf-8 string") 
+            _ => panic!("invalid utf-8 string"),
         }
     }
 }
@@ -168,7 +168,7 @@ mod tests {
     use openassets::marker_output::{Metadata, Payload, TxOutExt};
     use tapyrus::blockdata::script::Builder;
     use tapyrus::consensus::serialize;
-    use tapyrus::util::misc::hex_bytes;
+    use tapyrus::hashes::hex::FromHex;
     use tapyrus::{Script, TxOut};
 
     #[test]
@@ -186,8 +186,10 @@ mod tests {
             script_pubkey: script,
         };
         assert_eq!(
-            hex_bytes("4f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71")
-                .unwrap(),
+            Vec::<u8>::from_hex(
+                "4f4101000364007b1b753d68747470733a2f2f6370722e736d2f35596753553150672d71"
+            )
+            .unwrap(),
             txout.get_op_return_data()
         );
 
@@ -397,7 +399,10 @@ mod tests {
     fn test_serialize_metadata() {
         // utf8 string
         let metadata = Metadata("u=https://cpr.sm/5YgSU1Pg-q".as_bytes().to_vec());
-        assert_eq!(json!(metadata), json!({"hex": "753d68747470733a2f2f6370722e736d2f35596753553150672d71", "utf8": "u=https://cpr.sm/5YgSU1Pg-q"}));
+        assert_eq!(
+            json!(metadata),
+            json!({"hex": "753d68747470733a2f2f6370722e736d2f35596753553150672d71", "utf8": "u=https://cpr.sm/5YgSU1Pg-q"})
+        );
 
         // empty
         let metadata = Metadata(vec![]);
