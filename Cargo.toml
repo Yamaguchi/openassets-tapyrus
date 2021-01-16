@@ -1,6 +1,6 @@
 [package]
 name = "openassets-tapyrus"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["azuchi <azuchi@chaintope.com>"]
 license = "MIT"
 description = "The implementation of the Open Assets Protocol for Rust."
@@ -9,7 +9,7 @@ readme = "README.md"
 keywords = ["openassets", "bitcoin", "tapyrus"]
 
 [dependencies]
-tapyrus = { git = "https://github.com/chaintope/rust-tapyrus/", tag = "v0.3.0", features = ["use-serde"]}
+tapyrus = { version = "^0.4.1", features = ["use-serde"]}
 leb128 = "0.2"
 byteorder = "1.3"
 bitcoin_hashes = "0.7"
