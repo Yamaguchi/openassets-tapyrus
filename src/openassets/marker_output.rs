@@ -130,12 +130,12 @@ pub trait TxOutExt {
 impl TxOutExt for TxOut {
     fn get_op_return_data(&self) -> Vec<u8> {
         if self.script_pubkey.is_op_return() {
-            let mut script_iter = self.script_pubkey.iter(false);
+            let mut script_iter = self.script_pubkey.instructions();
             script_iter.next(); // OP_RETURN
             let item = script_iter.next();
             if item.is_some() {
-                return match item.unwrap() {
-                    Instruction::PushBytes(value) => value.to_vec(),
+                return match item.unwrap().ok() {
+                    Some(Instruction::PushBytes(value)) => value.to_vec(),
                     _ => vec![],
                 };
             } else {
