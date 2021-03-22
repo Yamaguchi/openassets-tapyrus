@@ -1,6 +1,6 @@
 [package]
 name = "openassets-tapyrus"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["azuchi <azuchi@chaintope.com>"]
 license = "MIT"
 description = "The implementation of the Open Assets Protocol for Rust."
